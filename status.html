@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Onion - Status</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <a class="logo" href="index.html"><img src="logo.png" alt="" onerror="this.style.display='none'"><span>Onion</span></a>
+  <div class="auth"></div>
+</header>
+<div class="ticker"><div></div></div>
+
+<main>
+  <h2>Aapke kaam ka status</h2>
+  <table>
+    <thead><tr><th>Naam</th><th>Date</th><th>Status</th></tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+  <p id="empty" style="margin-top:16px;color:#777;display:none">Abhi koi application nahi hai (ya login nahi hai).</p>
+  <p style="margin-top:20px"><a href="index.html" style="color:var(--red);font-weight:700">← Onion par wapas</a></p>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
+<script>
+const labels = {pending:['Pending','st-pending'], progress:['Ho raha hai','st-progress'],
+                done:['Ho gaya','st-done'], cancel:['Cancel ho gaya','st-cancel']};
+(async()=>{
+  const u = await currentUser();
+  const tb = document.getElementById('rows');
+  if(!u){ document.getElementById('empty').style.display='block'; return; }
+  const {data} = await sb.from('applications').select('*').eq('user_id', u.id).order('created_at',{ascending:false});
+  if(!data || !data.length) document.getElementById('empty').style.display='block';
+  (data||[]).forEach(a=>{
+    const [t,c] = labels[a.status] || labels.pending;
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td></td><td></td><td class="'+c+'">'+t+'</td>';
+    tr.children[0].textContent = a.data.firstName+' '+a.data.surname;
+    tr.children[1].textContent = new Date(a.created_at).toLocaleString();
+    tb.appendChild(tr);
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Onion - Details</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <a class="logo" href="index.html"><img src="logo.png" alt="" onerror="this.style.display='none'"><span>Onion</span></a>
+  <div class="auth"><a href="status.html"><button>Status</button></a></div>
+</header>
+<div class="ticker"><div></div></div>
+
+<main>
+  <h2>Apni details bhariye</h2>
+  <p id="loginWarn" class="msg err" style="display:none">Pehle <a href="index.html" style="text-decoration:underline">Login karein</a>.</p>
+  <form id="appForm">
+    <fieldset>
+      <legend>Personal</legend>
+      <div class="row">
+        <div><label>Naam</label><input name="firstName" required></div>
+        <div><label>Surname</label><input name="surname" required></div>
+        <div><label>Umar</label><input name="age" type="number" min="18" required></div>
+        <div><label>Married / Unmarried</label>
+          <select name="marital" required><option value="">Chuniye</option><option>Married</option><option>Unmarried</option></select></div>
+        <div><label>Bachche hain?</label>
+          <select name="children" required><option value="">Chuniye</option><option>Haan</option><option>Nahi</option></select></div>
+        <div><label>Kahan kaam karte hain</label><input name="work"></div>
+      </div>
+      <label>Pasandida cheezein</label>
+      <textarea name="favs" rows="2"></textarea>
+    </fieldset>
+
+    <fieldset>
+      <legend>Address</legend>
+      <div class="row">
+        <div><label>Desh</label><input name="country" id="country" value="India" required></div>
+        <div><label>Desh mein kahan (state / sheher)</label><input name="place" required></div>
+        <div><label>Ghar ka address</label><input name="home" required></div>
+        <div><label>Pin code</label><input name="pin" required></div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Photos / Documents</legend>
+      <input type="file" id="photos" accept="image/*,.pdf" multiple>
+      <div class="previews" id="previews"></div>
+    </fieldset>
+
+    <label style="font-weight:400;margin-bottom:12px"><input type="checkbox" id="agree" style="width:auto"> Maine <a href="terms.html" target="_blank" style="text-decoration:underline">Terms &amp; Privacy</a> padh li hai aur data dene ki sahmati deta/deti hoon.</label>
+
+    <button type="button" class="btn red" id="proofBtn">Kya aap hamari community se judne ke liye tayar hain?</button>
+
+    <div class="panel hidden" id="balancePanel">
+      <h3>Balance</h3>
+      <div class="bal"><span id="balVal">0</span> BTC</div>
+      <p>Zaroori: <b id="needVal"></b> BTC</p>
+      <div class="qr" id="qr"></div>
+      <div class="addr" id="addr"></div>
+      <p style="margin-top:10px;font-size:13px;color:#666">Bitcoin bhejne ke baad balance admin ya payment service ke confirm karne par badhta hai. Page refresh karke dekhein.</p>
+      <button type="button" class="btn" id="refreshBal" style="margin-top:8px">Balance refresh karein</button>
+      <div style="margin-top:16px"><button type="submit" class="btn red">Submit</button></div>
+      <div class="msg" id="msg"></div>
+    </div>
+  </form>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
+<script>
+const form = document.getElementById('appForm'), panel = document.getElementById('balancePanel'), msg = document.getElementById('msg');
+let user = null, need = 0;
+
+(async()=>{ user = await currentUser(); if(!user) document.getElementById('loginWarn').style.display='block'; })();
+
+document.getElementById('photos').onchange = e=>{
+  const box = document.getElementById('previews'); box.innerHTML='';
+  [...e.target.files].forEach(f=>{
+    if(f.type.startsWith('image/')){ const i=new Image(); i.src=URL.createObjectURL(f); box.appendChild(i); }
+    else { const s=document.createElement('span'); s.textContent=f.name; box.appendChild(s); }
+  });
+};
+
+async function refresh(){
+  const {data:p} = await sb.from('profiles').select('balance').eq('id', user.id).single();
+  const country = document.getElementById('country').value.trim();
+  let {data:f} = await sb.from('country_fees').select('btc').eq('country', country).maybeSingle();
+  if(!f){ ({data:f} = await sb.from('country_fees').select('btc').eq('country','default').single()); }
+  need = Number(f.btc);
+  document.getElementById('balVal').textContent = p ? Number(p.balance) : 0;
+  document.getElementById('needVal').textContent = need;
+}
+
+document.getElementById('proofBtn').onclick = async ()=>{
+  if(!user){ document.getElementById('loginWarn').style.display='block'; return; }
+  if(!form.reportValidity()) return;
+  if(!document.getElementById('agree').checked){ alert('Pehle Terms & Privacy se sahmat hon.'); return; }
+  document.getElementById('addr').textContent = ONION_CONFIG.walletAddress;
+  const q = document.getElementById('qr'); q.innerHTML='';
+  new QRCode(q, {text: ONION_CONFIG.walletAddress, width:150, height:150});
+  panel.classList.remove('hidden'); await refresh();
+  panel.scrollIntoView({behavior:'smooth'});
+};
+document.getElementById('refreshBal').onclick = refresh;
+document.getElementById('country').oninput = ()=>{ if(user && !panel.classList.contains('hidden')) refresh(); };
+
+form.onsubmit = async e=>{
+  e.preventDefault(); msg.className='msg'; msg.textContent='Bhej rahe hain...';
+  await refresh();
+  const bal = Number(document.getElementById('balVal').textContent);
+  if(bal < need){ msg.className='msg err'; msg.textContent='Balance kam hai. Submit nahi ho sakta.'; return; }
+  const paths = [];
+  for(const f of document.getElementById('photos').files){
+    const path = user.id+'/'+Date.now()+'-'+f.name.replace(/[^\w.\-]/g,'_');
+    const {error} = await sb.storage.from('docs').upload(path, f);
+    if(error){ msg.className='msg err'; msg.textContent='Upload fail: '+error.message; return; }
+    paths.push(path);
+  }
+  const data = Object.fromEntries(new FormData(form));
+  const {error} = await sb.rpc('submit_application', {p_data:data, p_photos:paths});
+  if(error){ msg.className='msg err'; msg.textContent=error.message; return; }
+  location.href = 'status.html';
+};
+</script>
+</body>
+</html>

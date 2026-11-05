@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Onion</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <a class="logo" href="index.html">
+    <img src="logo.png" alt="" onerror="this.style.display='none'">
+    <span>Onion</span>
+  </a>
+  <div class="auth">
+    <button id="loginBtn">Login</button>
+    <button id="registerBtn" class="red">Register</button>
+  </div>
+</header>
+
+<div class="ticker"><div></div></div>
+
+<main>
+  <h2>Welcome to Onion</h2>
+  <div class="cards">
+    <div class="card">
+      <img src="pic1.jpg" alt="" onerror="this.removeAttribute('src')">
+      <a class="name" href="apply.html">Name 1</a>
+    </div>
+    <div class="card">
+      <img src="pic2.jpg" alt="" onerror="this.removeAttribute('src')">
+      <span class="name soon">Name 2 (jaldi aa raha hai)</span>
+    </div>
+  </div>
+  <p style="margin-top:20px"><a href="status.html" style="color:var(--red);font-weight:700">Apna status dekhein →</a></p>
+</main>
+
+<footer><a href="terms.html">Terms &amp; Privacy</a> · © Onion</footer>
+
+<div class="modal" id="authModal">
+  <div class="box">
+    <h3 style="margin-bottom:12px">Login</h3>
+    <input id="authEmail" type="email" placeholder="Email">
+    <input id="authPass" type="password" placeholder="Password (kam se kam 8 akshar)">
+    <button class="btn red" id="authGo">Aage badhein</button>
+    <button class="btn" id="authClose">Band karein</button>
+    <div class="msg" id="authMsg"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

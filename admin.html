@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Onion Admin</title>
+<link rel="stylesheet" href="style.css">
+<style>.app{border:1px solid var(--line);border-radius:6px;padding:14px;margin-bottom:14px}.app dl{display:grid;grid-template-columns:150px 1fr;gap:4px 10px;font-size:14px}.app dt{font-weight:700}.thumbs{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}.thumbs img{height:90px;border:1px solid var(--line)}</style>
+</head>
+<body>
+<header><div class="logo"><span>Onion</span>&nbsp;Admin</div><div class="auth"><button id="outBtn" style="display:none">Logout</button></div></header>
+<main>
+  <div id="loginBox" class="panel" style="max-width:340px">
+    <h3 style="margin-bottom:10px">Admin Login</h3>
+    <input id="em" type="email" placeholder="Email" style="margin-bottom:8px">
+    <input id="pw" type="password" placeholder="Password" style="margin-bottom:8px">
+    <button class="btn red" id="go">Login</button>
+    <div class="msg err" id="lmsg"></div>
+  </div>
+
+  <div id="dash" style="display:none">
+    <div class="panel">
+      <h3>Balance jodein (bitcoin aane ke baad)</h3>
+      <div class="row" style="display:grid;grid-template-columns:2fr 1fr auto;gap:8px;margin-top:8px">
+        <input id="cEmail" type="email" placeholder="User ka email">
+        <input id="cAmt" type="number" step="0.00000001" placeholder="BTC">
+        <button class="btn red" id="cBtn">Jodein</button>
+      </div>
+      <div class="msg" id="cMsg"></div>
+    </div>
+    <h2>Saari applications</h2>
+    <div id="list"></div>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script>
+const sb = supabase.createClient(ONION_CONFIG.supabaseUrl, ONION_CONFIG.supabaseAnonKey);
+const $ = id => document.getElementById(id);
+
+async function start(){
+  const {data:{user}} = await sb.auth.getUser();
+  if(!user) return;
+  const {data:ok} = await sb.rpc('is_admin');
+  if(!ok){ $('lmsg').textContent='Ye account admin nahi hai.'; await sb.auth.signOut(); return; }
+  $('loginBox').style.display='none'; $('dash').style.display='block'; $('outBtn').style.display='inline-block';
+  load();
+}
+$('go').onclick = async()=>{
+  const {error} = await sb.auth.signInWithPassword({email:$('em').value.trim(), password:$('pw').value});
+  if(error){ $('lmsg').textContent='Login galat hai.'; return; }
+  start();
+};
+$('outBtn').onclick = async()=>{ await sb.auth.signOut(); location.reload(); };
+
+$('cBtn').onclick = async()=>{
+  const {error} = await sb.rpc('admin_credit', {p_email:$('cEmail').value.trim(), p_amount:Number($('cAmt').value)});
+  $('cMsg').className = 'msg'+(error?' err':''); $('cMsg').textContent = error ? error.message : 'Balance jud gaya';
+};
+
+async function load(){
+  const {data} = await sb.from('applications').select('*').order('created_at',{ascending:false});
+  const list = $('list'); list.innerHTML='';
+  for(const a of data||[]){
+    const div = document.createElement('div'); div.className='app';
+    const dl = document.createElement('dl');
+    for(const [k,v] of Object.entries(a.data)){
+      const dt=document.createElement('dt'); dt.textContent=k; const dd=document.createElement('dd'); dd.textContent=v;
+      dl.append(dt,dd);
+    }
+    div.appendChild(dl);
+    const th = document.createElement('div'); th.className='thumbs'; div.appendChild(th);
+    for(const p of a.photos||[]){
+      const {data:s} = await sb.storage.from('docs').createSignedUrl(p, 600);
+      if(!s) continue;
+      const link = document.createElement('a'); link.href=s.signedUrl; link.target='_blank'; link.rel='noopener';
+      if(/\.pdf$/i.test(p)) link.textContent='PDF: '+p.split('/').pop();
+      else { const i=new Image(); i.src=s.signedUrl; link.appendChild(i); }
+      th.appendChild(link);
+    }
+    const sel = document.createElement('select'); sel.style.maxWidth='200px';
+    [['pending','Pending'],['progress','Ho raha hai'],['done','Ho gaya'],['cancel','Cancel']].forEach(([v,t])=>{
+      const o=document.createElement('option'); o.value=v; o.textContent=t; if(a.status===v) o.selected=true; sel.appendChild(o);
+    });
+    sel.onchange = async()=>{ await sb.from('applications').update({status:sel.value}).eq('id',a.id); };
+    div.appendChild(sel);
+    list.appendChild(div);
+  }
+}
+start();
+</script>
+</body>
+</html>
